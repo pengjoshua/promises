@@ -1,5 +1,6 @@
 // You should only use the `new Promise` constructor from bluebird
 var Promise = require('bluebird');
+var _ = require('underscore');
 
 /**
  * Return a function that wraps `nodeStyleFn`. When the returned function is invoked,
@@ -16,6 +17,21 @@ var Promise = require('bluebird');
 
 var promisify = function(nodeStyleFn) {
  // TODO
+  return function() {
+    var argsForNodeStyleFn = [].slice.call(arguments);
+
+    return new Promise(function(resolve, reject) {
+      var nodeStyleCallback = function(err, results) {
+        if (err) { return reject(err); }
+        resolve(results);
+      };
+
+      // Node style functions expect callback as it's last argument
+      argsForNodeStyleFn.push(nodeStyleCallback);
+
+      nodeStyleFn.apply(null, argsForNodeStyleFn);
+    });
+  };
 };
 
 
@@ -32,6 +48,26 @@ var promisify = function(nodeStyleFn) {
 
 var all = function(arrayOfPromises) {
   // TODO
+  var resolvedValues = [];
+  var promisesLeftToResolve = arrayOfPromises.length;
+
+  return new Promise(function(resolve, reject) {
+    arrayOfPromises.forEach(function(promise, i) {
+      promise
+        .then(function(value) {
+          // Fulfilled values keep the same index position as
+          // their promise counterparts in the input array
+          resolvedValues[i] = value;
+
+          if (!--promisesLeftToResolve) {
+            resolve(resolvedValues);
+          }
+        })
+        // Any error thrown by a promise in the input array will
+        // reject the entire promise returned by Promise.all 
+        .catch(reject);
+    });
+  });
 };
 
 
@@ -43,6 +79,17 @@ var all = function(arrayOfPromises) {
 
 var race = function(arrayOfPromises) {
   // TODO
+  return new Promise(function(resolve, reject) {
+    // Syncronous forEach starts a race to resolve
+    arrayOfPromises.forEach(function(promise) {
+      promise
+        // A promise can only be resolved or rejected once.
+        // Any future calls to `resolve` or `reject` will
+        // just be ignored internally.
+        .then(resolve)
+        .catch(reject);
+    });
+  });
 };
 
 // Export these functions so we can unit test them

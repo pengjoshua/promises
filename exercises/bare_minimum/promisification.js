@@ -7,6 +7,8 @@ var fs = require('fs');
 var request = require('request');
 var crypto = require('crypto');
 var Promise = require('bluebird');
+// var fs = Promise.promisifyAll(require('fs'));
+// var request = Promise.promisify(require('request'));
 
 // (1) Asyncronous HTTP request
 var getGitHubProfile = function(user, callback) {
@@ -27,8 +29,27 @@ var getGitHubProfile = function(user, callback) {
   });
 };
 
-var getGitHubProfileAsync; // TODO
+var getGitHubProfileAsync = (user) => {
+  var options = {
+    url: 'https://api.github.com/users/' + user,
+    headers: { 'User-Agent': 'request' },
+    json: true  // will JSON.parse(body) for us
+  };
 
+  return new Promise((fulfill, reject) => {
+    request.get(options, (err, res, body) => {
+      if (err) {
+        reject(err);
+      } else if (body.message) {
+        reject(new Error('Failed to get GitHub profile: ' + body.message), null);
+      } else {
+        fulfill(body);
+      }
+    });
+  });
+}; 
+
+// var getGitHubProfileAsync = Promise.promisify(getGitHubProfile);
 
 // (2) Asyncronous token generation
 var generateRandomToken = function(callback) {
@@ -38,8 +59,16 @@ var generateRandomToken = function(callback) {
   });
 };
 
-var generateRandomTokenAsync; // TODO
+var generateRandomTokenAsync = () => {
+  return new Promise((fulfill, reject) => {
+    crypto.randomBytes(20, (err, buffer) => {
+      if (err) { reject(err); }
+      fulfill(buffer.toString('hex'));
+    });
+  });
+};
 
+// var generateRandomTokenAsync = Promise.promisify(generateRandomToken);
 
 // (3) Asyncronous file manipulation
 var readFileAndMakeItFunny = function(filePath, callback) {
@@ -56,7 +85,20 @@ var readFileAndMakeItFunny = function(filePath, callback) {
   });
 };
 
-var readFileAndMakeItFunnyAsync; // TODO
+var readFileAndMakeItFunnyAsync = (filePath) => {
+  return new Promise((resolve, reject) => {
+    fs.readFile(filePath, 'utf8', (err, file) => {
+      if (err) { return reject(err); }
+      
+      var funnyFile = file.split('\n')
+        .map((line) => {
+          return line + ' lol';
+        });
+
+      resolve(funnyFile);
+    });
+  });
+};
 
 // Export these functions so we can test them and reuse them in later exercises
 module.exports = {
